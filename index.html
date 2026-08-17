@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App</title>
+    <!-- Import Font Google Sans Flex -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Material Symbols Outlined -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <!-- Tailwind CSS & MD3 Web Components -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://esm.run/@material/web/all.js"></script>
+
+    <style>
+        body {
+            font-family: 'Google Sans Flex', sans-serif;
+        }
+        /* Icon Material Symbol đổi FILL khi hover */
+        .md-icon {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            transition: font-variation-settings 0.2s ease;
+        }
+        md-filled-button:hover .md-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 w-screen h-screen flex items-center justify-center m-0 p-0 overflow-hidden">
+
+    <!-- Nút Cài Đặt (mặc định ẩn, chỉ hiện khi chưa cài PWA) -->
+    <div id="install-container" class="hidden flex-col items-center gap-4 text-center p-6">
+        <div class="text-xl font-medium text-slate-700">Ứng dụng chưa được cài đặt</div>
+        <p class="text-sm text-slate-500 max-w-xs">Vui lòng cài đặt ứng dụng để tiếp tục sử dụng dịch vụ.</p>
+        <md-filled-button id="install-btn">
+            <span class="md-icon slot="icon">download</span>
+            Cài đặt
+        </md-filled-button>
+    </div>
+
+    <script type="module">
+        const TARGET_URL = "https://myaccount.google.com/smartlink/home";
+
+        // 1. Kiểm tra xem ứng dụng có đang chạy ở chế độ PWA (standalone) hay không
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+        if (isPWA) {
+            // Nếu đã là PWA -> Tự động chuyển hướng ngay lập tức
+            window.location.href = TARGET_URL;
+        } else {
+            // Nếu là web thông thường -> Hiện nút cài đặt
+            const installContainer = document.getElementById('install-container');
+            const installBtn = document.getElementById('install-btn');
+            installContainer.classList.remove('hidden');
+            installContainer.classList.add('flex');
+
+            let deferredPrompt;
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+            });
+
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        deferredPrompt = null;
+                    }
+                } else {
+                    alert('Trình duyệt của bạn không hỗ trợ cài đặt tự động hoặc ứng dụng đã được cài đặt. Vui lòng chọn "Thêm vào màn hình chính" từ menu trình duyệt.');
+                }
+            });
+        }
+
+        // 2. Tự động khởi tạo Manifest & Service Worker dạng Inline để tạo PWA hoàn chỉnh
+        const manifestData = {
+            name: "Google Account",
+            short_name: "Account",
+            start_url: window.location.href,
+            display: "standalone",
+            background_color: "#f8fafc",
+            theme_color: "#f8fafc",
+            icons: [
+                {
+                    src: "https://lh3.googleusercontent.com/a/ACg8ocK1ghp_0vaVGK6czFhTwIBo0asg1GAhSQ4xwdm9kL9kAmu8BneC=s0-c",
+                    sizes: "192x192 512x512",
+                    type: "image/png"
+                }
+            ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        // Đăng ký Service Worker cơ bản để đáp ứng tiêu chuẩn PWA
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', (e) => self.skipWaiting());
+                self.addEventListener('activate', (e) => self.clients.claim());
+                self.addEventListener('fetch', (e) => {});
+            `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            const swURL = URL.createObjectURL(swBlob);
+            navigator.serviceWorker.register(swURL).catch(() => {});
+        }
+    </script>
+</body>
+</html>
