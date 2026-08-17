@@ -48,7 +48,7 @@
         <div class="text-xl font-medium text-slate-700">Ứng dụng chưa được cài đặt</div>
         <p class="text-sm text-slate-500 max-w-xs">Vui lòng cài đặt ứng dụng để tiếp tục sử dụng dịch vụ.</p>
         <md-filled-button id="install-btn">
-            <span class="md-icon slot="icon">download</span>
+            <span class="md-icon" slot="icon">download</span>
             Cài đặt
         </md-filled-button>
     </div>
@@ -60,8 +60,16 @@
         const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
         if (isPWA) {
-            // Nếu đã là PWA -> Tự động chuyển hướng ngay lập tức
-            window.location.href = TARGET_URL;
+            // Mở liên kết trong tab mới
+            window.open(TARGET_URL, '_blank');
+            
+            // Tự động đóng tab hiện tại (thử nghiệm cả phương thức fallback)
+            window.close();
+            setTimeout(() => {
+                // Hỗ trợ đóng tab trong một số trường hợp trình duyệt chặn close trực tiếp
+                window.open('', '_self', '');
+                window.close();
+            }, 100);
         } else {
             // Nếu là web thông thường -> Hiện nút cài đặt
             const installContainer = document.getElementById('install-container');
@@ -89,7 +97,7 @@
             });
         }
 
-        // 2. Tự động khởi tạo Manifest & Service Worker dạng Inline để tạo PWA hoàn chỉnh
+        // 2. Tự động khởi tạo Manifest & Service Worker dạng Inline
         const manifestData = {
             name: "Google Account",
             short_name: "Account",
@@ -113,7 +121,7 @@
         manifestLink.href = manifestURL;
         document.head.appendChild(manifestLink);
 
-        // Đăng ký Service Worker cơ bản để đáp ứng tiêu chuẩn PWA
+        // Đăng ký Service Worker
         if ('serviceWorker' in navigator) {
             const swCode = `
                 self.addEventListener('install', (e) => self.skipWaiting());
